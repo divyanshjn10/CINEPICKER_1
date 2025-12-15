@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinePicker - Movie Randomizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* --- Enhanced Animations --- */
+        
+        /* Moving Gradient Background */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        /* Staggered Fade In Up */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card Reveal (3D Flip-ish feel) */
+        @keyframes cardReveal {
+            0% { opacity: 0; transform: perspective(1000px) rotateX(10deg) translateY(20px) scale(0.95); }
+            100% { opacity: 1; transform: perspective(1000px) rotateX(0) translateY(0) scale(1); }
+        }
+
+        /* Continuous Float/Hover */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Glow Pulse */
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+        }
+
+        .animate-card-reveal { animation: cardReveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-pop-in { animation: fadeInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; } /* Starts hidden */
+        
+        /* Utility */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Custom Scrollbar for sleekness */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-900 bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 animate-gradient text-white flex flex-col items-center justify-center p-4 font-sans selection:bg-red-500 selection:text-white overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="mb-12 text-center animate-float relative z-10">
+        <div class="flex items-center justify-center gap-3 mb-2 transition-transform hover:scale-105 duration-300 cursor-default">
+            <div class="relative">
+                <div class="absolute inset-0 bg-red-500 blur-xl opacity-20 rounded-full"></div>
+                <i data-lucide="clapperboard" class="text-red-500 w-10 h-10 relative z-10"></i>
+            </div>
+            <h1 class="text-5xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 drop-shadow-sm">CinePicker</h1>
+        </div>
+        <p class="text-slate-400 font-medium tracking-wide uppercase text-xs letter-spacing-2 opacity-80">Cinematic Destiny Awaits</p>
+    </header>
+
+    <div class="w-full max-w-lg relative z-10">
+        
+        <!-- Step 1: Genre Selection -->
+        <div id="step-genre" class="section active bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-white/10 shadow-2xl ring-1 ring-white/5">
+            <h2 class="text-2xl font-bold mb-8 text-center text-slate-100">Pick Your Poison</h2>
+            <div id="genre-grid" class="grid grid-cols-2 gap-4 perspective-1000">
+                <!-- Genre buttons will be injected here by JS -->
+            </div>
+        </div>
+
+        <!-- Step 2: Loading State -->
+        <div id="step-loading" class="section text-center py-20">
+            <div class="relative inline-block mb-6">
+                <div class="absolute inset-0 bg-yellow-500 blur-2xl opacity-20 rounded-full animate-pulse"></div>
+                <i data-lucide="popcorn" class="w-20 h-20 text-yellow-500 relative z-10 animate-bounce"></i>
+            </div>
+            <h3 class="text-3xl font-bold text-white mb-2">Popping the Corn...</h3>
+            <p id="loading-text" class="text-slate-400 text-lg animate-pulse">Scanning the archives</p>
+        </div>
+
+        <!-- Step 3: Result -->
+        <div id="step-result" class="section animate-card-reveal bg-slate-900/80 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_0_50px_-12px_rgba(220,38,38,0.25)] overflow-hidden">
+            <!-- Movie "Poster" Header -->
+            <div class="bg-gradient-to-b from-red-600 to-slate-900 p-8 text-center relative overflow-hidden group">
+               <!-- Animated Noise/Texture overlay -->
+               <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] mix-blend-overlay"></div>
+               
+               <!-- Subtle glow behind title -->
+               <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-red-500 blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-700"></div>
+
+               <div class="relative z-10 transform transition-transform duration-500 group-hover:scale-105">
+                 <h2 class="text-xs font-bold uppercase tracking-[0.3em] text-red-200 mb-3 border-b border-red-400/30 inline-block pb-1">Tonight's Feature</h2>
+                 <h1 id="movie-title" class="text-4xl md:text-5xl font-black text-white mb-2 leading-tight drop-shadow-xl font-serif">Movie Title</h1>
+               </div>
+            </div>
+
+            <div class="p-8">
+              <!-- Meta Data -->
+              <div class="flex flex-wrap items-center justify-center gap-4 mb-8 text-sm text-slate-300 font-medium">
+                <!-- Rating Button/Badge -->
+                <div class="flex items-center gap-2 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/30 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                  <i data-lucide="star" class="w-4 h-4 fill-yellow-500 text-yellow-500"></i>
+                  <span id="movie-rating" class="font-bold">95%</span>
+                </div>
+                
+                <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-white/5">
+                  <i data-lucide="calendar" class="w-4 h-4 text-red-400"></i>
+                  <span id="movie-year">2024</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-white/5">
+                  <i data-lucide="clock" class="w-4 h-4 text-red-400"></i>
+                  <span id="movie-duration">2h 0m</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-white/5">
+                  <i data-lucide="film" class="w-4 h-4 text-red-400"></i>
+                  <span id="movie-director">Director Name</span>
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div class="relative mb-10">
+                  <i data-lucide="quote" class="absolute -top-4 -left-2 w-8 h-8 text-slate-700 opacity-50 rotate-180"></i>
+                  <p id="movie-desc" class="text-slate-300 leading-relaxed text-center text-lg px-4 italic">
+                    Description goes here...
+                  </p>
+                  <i data-lucide="quote" class="absolute -bottom-4 -right-2 w-8 h-8 text-slate-700 opacity-50"></i>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex flex-col md:flex-row gap-4 justify-center">
+                <!-- Watch Now Button -->
+                <button id="btn-watch" class="group relative px-8 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold transition-all duration-300 text-white shadow-lg hover:shadow-emerald-500/50 hover:-translate-y-1 active:scale-95 overflow-hidden w-full md:w-auto">
+                    <span class="relative z-10 flex items-center justify-center gap-2">
+                        <i data-lucide="play-circle" class="w-5 h-5"></i>
+                        Watch Now
+                    </span>
+                    <div class="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine"></div>
+                </button>
+
+                <!-- Pick Another Button -->
+                <button onclick="resetApp()" class="group relative px-8 py-4 bg-slate-700 hover:bg-slate-600 rounded-2xl font-bold transition-all duration-300 text-white shadow-lg hover:shadow-slate-500/50 hover:-translate-y-1 active:scale-95 overflow-hidden w-full md:w-auto">
+                  <span class="relative z-10 flex items-center justify-center gap-2">
+                      <i data-lucide="refresh-cw" class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500"></i>
+                      Pick Another
+                  </span>
+                </button>
+              </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Data
+        const movieData = {
+            Action: [
+                { title: "Mad Max: Fury Road", year: 2015, director: "George Miller", duration: "2h 0m", desc: "In a post-apocalyptic wasteland, a woman rebels against a tyrannical ruler in search for her homeland." },
+                { title: "The Dark Knight", year: 2008, director: "Christopher Nolan", duration: "2h 32m", desc: "Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice." },
+                { title: "John Wick", year: 2014, director: "Chad Stahelski", duration: "1h 41m", desc: "An ex-hit-man comes out of retirement to track down the gangsters that killed his dog." },
+                { title: "Gladiator", year: 2000, director: "Ridley Scott", duration: "2h 35m", desc: "A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family." },
+                { title: "Die Hard", year: 1988, director: "John McTiernan", duration: "2h 12m", desc: "An NYPD officer tries to save his wife and several others taken hostage by German terrorists." },
+                { title: "Terminator 2: Judgment Day", year: 1991, director: "James Cameron", duration: "2h 17m", desc: "A cyborg, identical to the one who failed to kill Sarah Connor, must now protect her teenage son." },
+                { title: "The Matrix", year: 1999, director: "Lana & Lilly Wachowski", duration: "2h 16m", desc: "A computer hacker learns from mysterious rebels about the true nature of his reality." },
+                { title: "Raiders of the Lost Ark", year: 1981, director: "Steven Spielberg", duration: "1h 55m", desc: "Archaeologist Indiana Jones races Nazis to locate the Ark of the Covenant." },
+                { title: "Mission: Impossible - Fallout", year: 2018, director: "Christopher McQuarrie", duration: "2h 27m", desc: "Ethan Hunt and his IMF team join forces with CIA assassin August Walker to prevent a disaster." },
+                { title: "Casino Royale", year: 2006, director: "Martin Campbell", duration: "2h 24m", desc: "James Bond sets out on his first mission as 007 and must defeat a private banker to terrorists in a poker game." },
+                { title: "The Bourne Identity", year: 2002, director: "Doug Liman", duration: "1h 59m", desc: "A man is picked up by a fishing boat, bullet-riddled and suffering from amnesia, before racing to elude assassins." },
+                { title: "Top Gun: Maverick", year: 2022, director: "Joseph Kosinski", duration: "2h 10m", desc: "After thirty years, Maverick is still pushing the envelope as a top naval aviator." },
+                { title: "Logan", year: 2017, director: "James Mangold", duration: "2h 17m", desc: "In a future where mutants are nearly extinct, an elderly Logan leads a quiet life until a young mutant arrives." },
+                { title: "Spider-Man: Into the Spider-Verse", year: 2018, director: "Bob Persichetti", duration: "1h 57m", desc: "Teen Miles Morales becomes the Spider-Man of his universe and must join with five others to stop a threat." },
+                { title: "Avengers: Infinity War", year: 2018, director: "Anthony & Joe Russo", duration: "2h 29m", desc: "The Avengers and their allies must be willing to sacrifice all in an attempt to defeat the powerful Thanos." },
+                { title: "Crouching Tiger, Hidden Dragon", year: 2000, director: "Ang Lee", duration: "2h 0m", desc: "A young Chinese warrior steals a sword from a famed swordsman and then escapes into a world of romantic adventure." },
+                { title: "Kill Bill: Vol. 1", year: 2003, director: "Quentin Tarantino", duration: "1h 51m", desc: "After awakening from a four-year coma, a former assassin wreaks vengeance on the team of assassins who betrayed her." },
+                { title: "Speed", year: 1994, director: "Jan de Bont", duration: "1h 56m", desc: "A young police officer must prevent a bomb exploding aboard a city bus by keeping its speed above 50 mph." },
+                { title: "Heat", year: 1995, director: "Michael Mann", duration: "2h 50m", desc: "A group of professional bank robbers start to feel the heat from police when they unknowingly leave a clue." },
+                { title: "Seven Samurai", year: 1954, director: "Akira Kurosawa", duration: "3h 27m", desc: "A poor village under attack by bandits recruits seven unemployed samurai to help them defend themselves." },
+                { title: "Aliens", year: 1986, director: "James Cameron", duration: "2h 17m", desc: "Ellen Ripley is rescued by a deep salvage team after being in hypersleep for 57 years." },
+                { title: "First Blood", year: 1982, director: "Ted Kotcheff", duration: "1h 33m", desc: "A veteran Green Beret is forced by a cruel Sheriff and his deputies to flee into the mountains." },
+                { title: "Taken", year: 2008, director: "Pierre Morel", duration: "1h 30m", desc: "A retired CIA agent travels across Europe and relies on his old skills to save his estranged daughter." },
+                { title: "300", year: 2006, director: "Zack Snyder", duration: "1h 57m", desc: "King Leonidas of Sparta and a force of 300 men fight the Persians at Thermopylae in 480 B.C." },
+                { title: "Kingsman: The Secret Service", year: 2014, director: "Matthew Vaughn", duration: "2h 9m", desc: "A spy organization recruits a promising street kid into the agency's training program." },
+                { title: "Edge of Tomorrow", year: 2014, director: "Doug Liman", duration: "1h 53m", desc: "A soldier fighting aliens gets to relive the same day over and over, the day restarting every time he dies." },
+                { title: "Baby Driver", year: 2017, director: "Edgar Wright", duration: "1h 53m", desc: "After being coerced into working for a crime boss, a young getaway driver finds himself taking part in a heist doomed to fail." },
+                { title: "District 9", year: 2009, director: "Neill Blomkamp", duration: "1h 52m", desc: "Violence ensues after an extraterrestrial race forced to live in slum-like conditions on Earth finds a kindred spirit." },
+                { title: "Black Panther", year: 2018, director: "Ryan Coogler", duration: "2h 14m", desc: "T'Challa, heir to the hidden but advanced kingdom of Wakanda, must step forward to lead his people." },
+                { title: "The Raid: Redemption", year: 2011, director: "Gareth Evans", duration: "1h 41m", desc: "A S.W.A.T. team becomes trapped in a tenement run by a ruthless mobster and his army." },
+                { title: "Dredd", year: 2012, director: "Pete Travis", duration: "1h 35m", desc: "In a violent, futuristic city, a cop teams up with a trainee to take down a gang that deals the reality-altering drug." }
+            ],
+            Comedy: [
+                { title: "Superbad", year: 2007, director: "Greg Mottola", duration: "1h 53m", desc: "Two co-dependent high school seniors are forced to deal with separation anxiety after their plan to stage a party goes awry." },
+                { title: "The Grand Budapest Hotel", year: 2014, director: "Wes Anderson", duration: "1h 39m", desc: "A writer encounters the owner of an aging high-class hotel, who tells him of his early years serving as a lobby boy." },
+                { title: "Monty Python and the Holy Grail", year: 1975, director: "Terry Gilliam", duration: "1h 31m", desc: "King Arthur and his Knights of the Round Table embark on a surreal, low-budget search for the Holy Grail." },
+                { title: "Palm Springs", year: 2020, director: "Max Barbakow", duration: "1h 30m", desc: "Stuck in a time loop, two wedding guests develop a budding romance while living the same day over and over again." },
+                { title: "The Hangover", year: 2009, director: "Todd Phillips", duration: "1h 40m", desc: "Three buddies wake up from a bachelor party in Las Vegas, with no memory of the previous night and the bachelor missing." },
+                { title: "Bridesmaids", year: 2011, director: "Paul Feig", duration: "2h 5m", desc: "Competition between the maid of honor and a bridesmaid, over who is the bride's best friend, threatens to upend the wedding." },
+                { title: "Step Brothers", year: 2008, director: "Adam McKay", duration: "1h 38m", desc: "Two aimless middle-aged losers still living at home are forced against their will to become roommates." },
+                { title: "Anchorman: The Legend of Ron Burgundy", year: 2004, director: "Adam McKay", duration: "1h 34m", desc: "Ron Burgundy is San Diego's top-rated newsman in the male-dominated broadcasting of the 1970s." },
+                { title: "Mean Girls", year: 2004, director: "Mark Waters", duration: "1h 37m", desc: "Cady Heron is a hit with The Plastics, the A-list girl clique at her new school, until she makes the mistake of falling for Aaron Samuels." },
+                { title: "Shaun of the Dead", year: 2004, director: "Edgar Wright", duration: "1h 39m", desc: "A man's uneventful life is disrupted by the zombie apocalypse." },
+                { title: "Hot Fuzz", year: 2007, director: "Edgar Wright", duration: "2h 1m", desc: "A skilled London police officer is transferred to a village where the easygoing officers object to his fervor." },
+                { title: "The Big Lebowski", year: 1998, director: "Joel Coen", duration: "1h 57m", desc: "Jeff 'The Dude' Lebowski, mistaken for a millionaire of the same name, seeks restitution for his ruined rug." },
+                { title: "Ferris Bueller's Day Off", year: 1986, director: "John Hughes", duration: "1h 43m", desc: "A high school wise guy is determined to have a day off from school, despite what the Principal thinks." },
+                { title: "Airplane!", year: 1980, director: "Jim Abrahams", duration: "1h 28m", desc: "A man afraid to fly must ensure that a plane lands safely after the pilots become sick." },
+                { title: "Coming to America", year: 1988, director: "John Landis", duration: "1h 57m", desc: "An extremely pampered African Prince travels to Queens, New York, and goes undercover to find a wife." },
+                { title: "Groundhog Day", year: 1993, director: "Harold Ramis", duration: "1h 41m", desc: "A weatherman finds himself inexplicably living the same day over and over again." },
+                { title: "Borat", year: 2006, director: "Larry Charles", duration: "1h 24m", desc: "Kazakh TV talking head Borat is dispatched to the United States to report on the greatest country in the world." },
+                { title: "Dumb and Dumber", year: 1994, director: "Peter Farrelly", duration: "1h 47m", desc: "After a woman leaves a briefcase at the airport terminal, a dumb limo driver and his dumber friend set out to return it." },
+                { title: "Booksmart", year: 2019, director: "Olivia Wilde", duration: "1h 42m", desc: "On the eve of their high school graduation, two academic superstars realize they should have worked less and played more." },
+                { title: "Crazy Rich Asians", year: 2018, director: "Jon M. Chu", duration: "2h 0m", desc: "This contemporary romantic comedy follows native New Yorker Rachel Chu to Singapore to meet her boyfriend's family." },
+                { title: "The 40-Year-Old Virgin", year: 2005, director: "Judd Apatow", duration: "1h 56m", desc: "Goaded by his buddies, a nerdy guy who's never done the deed only finds the pressure mounting when he meets a single mom." },
+                { title: "Tropic Thunder", year: 2008, director: "Ben Stiller", duration: "1h 47m", desc: "Through a series of freak occurrences, a group of actors shooting a big-budget war movie are forced to become the soldiers they are portraying." },
+                { title: "Game Night", year: 2018, director: "John Francis Daley", duration: "1h 40m", desc: "A group of friends who meet regularly for game nights find themselves entangled in a real-life mystery." },
+                { title: "School of Rock", year: 2003, director: "Richard Linklater", duration: "1h 49m", desc: "After being kicked out of his rock band, Dewey Finn becomes a substitute teacher of an uptight elementary private school." },
+                { title: "21 Jump Street", year: 2012, director: "Phil Lord & Chris Miller", duration: "1h 49m", desc: "A pair of underachieving cops are sent back to a local high school to blend in and bring down a synthetic drug ring." },
+                { title: "Knives Out", year: 2019, director: "Rian Johnson", duration: "2h 10m", desc: "A detective investigates the death of a patriarch of an eccentric, combative family." },
+                { title: "Jojo Rabbit", year: 2019, director: "Taika Waititi", duration: "1h 48m", desc: "A young boy in Hitler's army finds out his mother is hiding a Jewish girl in their home." },
+                { title: "What We Do in the Shadows", year: 2014, director: "Jemaine Clement", duration: "1h 26m", desc: "Viago, Deacon, and Vladislav are vampires who are finding that modern life has them struggling with the mundane." },
+                { title: "The Nice Guys", year: 2016, director: "Shane Black", duration: "1h 56m", desc: "In 1970s Los Angeles, a mismatched pair of private eyes investigate a missing girl and the mysterious death of a porn star." },
+                { title: "Napoleon Dynamite", year: 2004, director: "Jared Hess", duration: "1h 36m", desc: "A listless and alienated teenager decides to help his new friend win the class presidency." },
+                { title: "Clueless", year: 1995, director: "Amy Heckerling", duration: "1h 37m", desc: "Shallow, rich and socially successful Cher is at the top of her Beverly Hills high school's pecking order." },
+                { title: "Office Space", year: 1999, director: "Mike Judge", duration: "1h 29m", desc: "Three company workers who hate their jobs decide to rebel against their greedy boss." }
+            ],
+            "Sci-Fi": [
+                { title: "Inception", year: 2010, director: "Christopher Nolan", duration: "2h 28m", desc: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea." },
+                { title: "Blade Runner 2049", year: 2017, director: "Denis Villeneuve", duration: "2h 44m", desc: "Young Blade Runner K's discovery of a long-buried secret leads him to track down former Blade Runner Rick Deckard." },
+                { title: "The Matrix", year: 1999, director: "Lana & Lilly Wachowski", duration: "2h 16m", desc: "Neo discovers the truth about his reality and his role in the war against its controllers." },
+                { title: "Arrival", year: 2016, director: "Denis Villeneuve", duration: "1h 56m", desc: "A linguist works with the military to communicate with alien lifeforms after twelve mysterious spacecraft appear." },
+                { title: "Interstellar", year: 2014, director: "Christopher Nolan", duration: "2h 49m", desc: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival." },
+                { title: "2001: A Space Odyssey", year: 1968, director: "Stanley Kubrick", duration: "2h 29m", desc: "After discovering a mysterious artifact buried beneath the Lunar surface, mankind sets off on a quest to find its origins." },
+                { title: "Ex Machina", year: 2014, director: "Alex Garland", duration: "1h 48m", desc: "A young programmer is selected to participate in a ground-breaking experiment in synthetic intelligence." },
+                { title: "Star Wars: A New Hope", year: 1977, director: "George Lucas", duration: "2h 1m", desc: "Luke Skywalker joins forces with a Jedi Knight, a cocky pilot, a Wookiee and two droids to save the galaxy." },
+                { title: "The Empire Strikes Back", year: 1980, director: "Irvin Kershner", duration: "2h 4m", desc: "After the Rebels are overpowered by the Empire, Luke Skywalker begins Jedi training with Yoda." },
+                { title: "E.T. the Extra-Terrestrial", year: 1982, director: "Steven Spielberg", duration: "1h 55m", desc: "A troubled child summons the courage to help a friendly alien escape Earth and return to his home world." },
+                { title: "Jurassic Park", year: 1993, director: "Steven Spielberg", duration: "2h 7m", desc: "A pragmatic paleontologist visiting an almost complete theme park is tasked with protecting a couple of kids after a power failure." },
+                { title: "Back to the Future", year: 1985, director: "Robert Zemeckis", duration: "1h 56m", desc: "Marty McFly, a 17-year-old high school student, is accidentally sent thirty years into the past in a time-traveling DeLorean." },
+                { title: "Eternal Sunshine of the Spotless Mind", year: 2004, director: "Michel Gondry", duration: "1h 48m", desc: "When their relationship turns sour, a couple undergoes a medical procedure to have each other erased from their memories." },
+                { title: "Her", year: 2013, director: "Spike Jonze", duration: "2h 6m", desc: "In a near future, a lonely writer develops an unlikely relationship with an operating system designed to meet his every need." },
+                { title: "Children of Men", year: 2006, director: "Alfonso Cuarón", duration: "1h 49m", desc: "In 2027, in a chaotic world in which women have become somehow infertile, a former activist agrees to help transport a miraculously pregnant woman." },
+                { title: "Dune", year: 2021, director: "Denis Villeneuve", duration: "2h 35m", desc: "A noble family becomes embroiled in a war for control over the galaxy's most valuable asset." },
+                { title: "The Martian", year: 2015, director: "Ridley Scott", duration: "2h 24m", desc: "An astronaut becomes stranded on Mars after his team assume him dead, and must rely on his ingenuity to find a way to signal to Earth." },
+                { title: "Gravity", year: 2013, director: "Alfonso Cuarón", duration: "1h 31m", desc: "Two astronauts work together to survive after an accident leaves them stranded in space." },
+                { title: "District 9", year: 2009, director: "Neill Blomkamp", duration: "1h 52m", desc: "Violence ensues after an extraterrestrial race forced to live in slum-like conditions on Earth finds a kindred spirit." },
+                { title: "Minority Report", year: 2002, director: "Steven Spielberg", duration: "2h 25m", desc: "In a future where a special police unit is able to arrest murderers before they commit their crimes, an officer is accused." },
+                { title: "Moon", year: 2009, director: "Duncan Jones", duration: "1h 37m", desc: "Astronaut Sam Bell has a quintessentially personal encounter toward the end of his three-year stint on the Moon." },
+                { title: "The Fifth Element", year: 1997, director: "Luc Besson", duration: "2h 6m", desc: "In the colorful future, a cab driver unwittingly becomes the central figure in the search for a legendary cosmic weapon." },
+                { title: "12 Monkeys", year: 1995, director: "Terry Gilliam", duration: "2h 9m", desc: "In a future world devastated by disease, a convict is sent back in time to gather information about the man-made virus." },
+                { title: "WALL·E", year: 2008, director: "Andrew Stanton", duration: "1h 38m", desc: "In the distant future, a small waste-collecting robot inadvertently embarks on a space journey that will decide the fate of mankind." },
+                { title: "Avatar", year: 2009, director: "James Cameron", duration: "2h 42m", desc: "A paraplegic Marine dispatched to the moon Pandora on a unique mission becomes torn between following his orders and protecting the world." },
+                { title: "Star Trek", year: 2009, director: "J.J. Abrams", duration: "2h 7m", desc: "The brash James T. Kirk tries to live up to his father's legacy with Mr. Spock keeping him in check." },
+                { title: "Looper", year: 2012, director: "Rian Johnson", duration: "1h 59m", desc: "In 2074, when the mob wants to get rid of someone, the target is sent into the past, where a hired gun awaits." },
+                { title: "Annihilation", year: 2018, director: "Alex Garland", duration: "1h 55m", desc: "A biologist signs up for a dangerous, secret expedition into a mysterious zone where the laws of nature don't apply." },
+                { title: "Gattaca", year: 1997, director: "Andrew Niccol", duration: "1h 46m", desc: "A genetically inferior man assumes the identity of a superior one in order to pursue his lifelong dream of space travel." },
+                { title: "Donnie Darko", year: 2001, director: "Richard Kelly", duration: "1h 53m", desc: "After narrowly escaping a bizarre accident, a troubled teenager is plagued by visions of a man in a large rabbit suit." },
+                { title: "Everything Everywhere All At Once", year: 2022, director: "Daniels", duration: "2h 19m", desc: "A Chinese immigrant is swept up in an insane adventure, where she alone can save the world by exploring other universes." }
+            ],
+            Horror: [
+                { title: "Get Out", year: 2017, director: "Jordan Peele", duration: "1h 44m", desc: "A young African-American visits his white girlfriend's parents for the weekend, where his uneasiness reaches a boiling point." },
+                { title: "Hereditary", year: 2018, director: "Ari Aster", duration: "2h 7m", desc: "A grieving family is haunted by tragic and disturbing occurrences after the death of their secretive grandmother." },
+                { title: "The Shining", year: 1980, director: "Stanley Kubrick", duration: "2h 26m", desc: "A family heads to an isolated hotel for the winter where a sinister presence influences the father into violence." },
+                { title: "Alien", year: 1979, director: "Ridley Scott", duration: "1h 57m", desc: "The crew of a commercial spacecraft encounter a deadly lifeform after investigating an unknown transmission." },
+                { title: "The Thing", year: 1982, director: "John Carpenter", duration: "1h 49m", desc: "A research team in Antarctica is hunted by a shape-shifting alien that assumes the appearance of its victims." },
+                { title: "Psycho", year: 1960, director: "Alfred Hitchcock", duration: "1h 49m", desc: "A Phoenix secretary embezzles $40,000 from her employer's client, goes on the run, and checks into a remote motel." },
+                { title: "The Exorcist", year: 1973, director: "William Friedkin", duration: "2h 2m", desc: "When a 12-year-old girl is possessed by a mysterious entity, her mother seeks the help of two priests to save her." },
+                { title: "Halloween", year: 1978, director: "John Carpenter", duration: "1h 31m", desc: "Fifteen years after murdering his sister on Halloween night, Michael Myers escapes from a mental hospital to kill again." },
+                { title: "Scream", year: 1996, director: "Wes Craven", duration: "1h 51m", desc: "A year after the murder of her mother, a teenage girl is terrorized by a new killer, who targets the girl and her friends." },
+                { title: "A Quiet Place", year: 2018, director: "John Krasinski", duration: "1h 30m", desc: "In a post-apocalyptic world, a family is forced to live in silence while hiding from monsters with ultra-sensitive hearing." },
+                { title: "It Follows", year: 2014, director: "David Robert Mitchell", duration: "1h 40m", desc: "A young woman is followed by an unknown supernatural force after a sexual encounter." },
+                { title: "The Witch", year: 2015, director: "Robert Eggers", duration: "1h 32m", desc: "A family in 1630s New England is torn apart by the forces of witchcraft, black magic, and possession." },
+                { title: "Midsommar", year: 2019, director: "Ari Aster", duration: "2h 28m", desc: "A couple travels to Scandinavia to visit a rural hometown's fabled Swedish mid-summer festival. What begins as an idyllic retreat quickly devolves." },
+                { title: "Us", year: 2019, director: "Jordan Peele", duration: "1h 56m", desc: "A family's serene beach vacation turns to chaos when their doppelgängers appear and begin to terrorize them." },
+                { title: "The Babadook", year: 2014, director: "Jennifer Kent", duration: "1h 33m", desc: "A single mother and her child fall into a deep well of paranoia when an eerie children's book titled 'Mister Babadook' manifests." },
+                { title: "Rosemary's Baby", year: 1968, director: "Roman Polanski", duration: "2h 17m", desc: "A young couple trying for a baby moves into an aging, ornate apartment building on Central Park West, where they find themselves surrounded by peculiar neighbors." },
+                { title: "The Texas Chain Saw Massacre", year: 1974, director: "Tobe Hooper", duration: "1h 23m", desc: "Two siblings and three of their friends en route to visit their grandfather's grave in Texas fall victim to a family of cannibalistic psychopaths." },
+                { title: "Night of the Living Dead", year: 1968, director: "George A. Romero", duration: "1h 36m", desc: "A ragtag group of Pennsylvanians barricade themselves in an old farmhouse to remain safe from a bloodthirsty, flesh-eating horde." },
+                { title: "28 Days Later", year: 2002, director: "Danny Boyle", duration: "1h 53m", desc: "Four weeks after a mysterious, incurable virus spreads throughout the UK, a handful of survivors try to find sanctuary." },
+                { title: "The Conjuring", year: 2013, director: "James Wan", duration: "1h 52m", desc: "Paranormal investigators Ed and Lorraine Warren work to help a family terrorized by a dark presence in their farmhouse." },
+                { title: "Sinister", year: 2012, director: "Scott Derrickson", duration: "1h 50m", desc: "Washed-up true crime writer Ellison Oswalt finds a box of super 8 home movies in his new home that suggest the murder he is currently researching." },
+                { title: "Insidious", year: 2010, director: "James Wan", duration: "1h 43m", desc: "A family looks to prevent evil spirits from trapping their comatose child in a realm called The Further." },
+                { title: "Saw", year: 2004, director: "James Wan", duration: "1h 43m", desc: "Two strangers awaken in a room with no recollection of how they got there, and soon discover they are pawns in a deadly game." },
+                { title: "The Cabin in the Woods", year: 2011, director: "Drew Goddard", duration: "1h 35m", desc: "Five friends go for a break at a remote cabin, where they get more than they bargained for, discovering the truth behind the cabin." },
+                { title: "Train to Busan", year: 2016, director: "Sang-ho Yeon", duration: "1h 58m", desc: "While a zombie virus breaks out in South Korea, passengers struggle to survive on the train from Seoul to Busan." },
+                { title: "It", year: 2017, director: "Andy Muschietti", duration: "2h 15m", desc: "In the summer of 1989, a group of bullied kids band together to destroy a shape-shifting monster, which disguises itself as a clown." },
+                { title: "The Silence of the Lambs", year: 1991, director: "Jonathan Demme", duration: "1h 58m", desc: "A young F.B.I. cadet must receive the help of an incarcerated and manipulative cannibal killer to help catch another serial killer." },
+                { title: "Jaws", year: 1975, director: "Steven Spielberg", duration: "2h 4m", desc: "When a killer shark unleashes chaos on a beach community, it's up to a local sheriff, a marine biologist, and an old seafarer to hunt the beast." },
+                { title: "Poltergeist", year: 1982, director: "Tobe Hooper", duration: "1h 54m", desc: "A family's home is haunted by a host of demonic ghosts." },
+                { title: "The Ring", year: 2002, director: "Gore Verbinski", duration: "1h 55m", desc: "A journalist must investigate a mysterious videotape which seems to cause the death of anyone one week to the day after they view it." },
+                { title: "Barbarian", year: 2022, director: "Zach Cregger", duration: "1h 42m", desc: "A woman staying at an Airbnb discovers that the house she has rented is not what it seems." }
+            ],
+            Drama: [
+                { title: "The Shawshank Redemption", year: 1994, director: "Frank Darabont", duration: "2h 22m", desc: "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency." },
+                { title: "Parasite", year: 2019, director: "Bong Joon Ho", duration: "2h 12m", desc: "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan." },
+                { title: "The Godfather", year: 1972, director: "Francis Ford Coppola", duration: "2h 55m", desc: "The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son." },
+                { title: "Pulp Fiction", year: 1994, director: "Quentin Tarantino", duration: "2h 34m", desc: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption." },
+                { title: "Forrest Gump", year: 1994, director: "Robert Zemeckis", duration: "2h 22m", desc: "The presidencies of Kennedy and Johnson, the Vietnam War, the Watergate scandal and other historical events unfold through the perspective of an Alabama man." },
+                { title: "Fight Club", year: 1999, director: "David Fincher", duration: "2h 19m", desc: "An insomniac office worker and a devil-may-care soap maker form an underground fight club that evolves into much more." },
+                { title: "Schindler's List", year: 1993, director: "Steven Spielberg", duration: "3h 15m", desc: "In German-occupied Poland during World War II, industrialist Oskar Schindler gradually becomes concerned for his Jewish workforce." },
+                { title: "12 Angry Men", year: 1957, director: "Sidney Lumet", duration: "1h 36m", desc: "The jury in a New York City murder trial is frustrated by a single member whose skeptical caution forces them to more carefully consider the evidence." },
+                { title: "Goodfellas", year: 1990, director: "Martin Scorsese", duration: "2h 26m", desc: "The story of Henry Hill and his life in the mob, covering his relationship with his wife Karen Hill and his mob partners." },
+                { title: "One Flew Over the Cuckoo's Nest", year: 1975, director: "Milos Forman", duration: "2h 13m", desc: "A criminal pleads insanity and is admitted to a mental institution, where he rebels against the oppressive nurse and rallies up the scared patients." },
+                { title: "City of God", year: 2002, director: "Fernando Meirelles", duration: "2h 10m", desc: "In the slums of Rio, two kids' paths diverge as one struggles to become a photographer and the other a kingpin." },
+                { title: "Whiplash", year: 2014, director: "Damien Chazelle", duration: "1h 46m", desc: "A promising young drummer enrolls at a cut-throat music conservatory where his dreams of greatness are mentored by an instructor who will stop at nothing." },
+                { title: "The Prestige", year: 2006, director: "Christopher Nolan", duration: "2h 10m", desc: "After a tragic accident, two stage magicians engage in a battle to create the ultimate illusion while sacrificing everything they have to outwit each other." },
+                { title: "The Departed", year: 2006, director: "Martin Scorsese", duration: "2h 31m", desc: "An undercover cop and a mole in the police attempt to identify each other while infiltrating an Irish gang in South Boston." },
+                { title: "The Green Mile", year: 1999, director: "Frank Darabont", duration: "3h 9m", desc: "The lives of guards on Death Row are affected by one of their charges: a black man accused of child murder and rape, yet who has a mysterious gift." },
+                { title: "Good Will Hunting", year: 1997, director: "Gus Van Sant", duration: "2h 6m", desc: "Will Hunting, a janitor at M.I.T., has a gift for mathematics, but needs help from a psychologist to find direction in his life." },
+                { title: "The Social Network", year: 2010, director: "David Fincher", duration: "2h 0m", desc: "As Harvard student Mark Zuckerberg creates the social networking site that would become known as Facebook, he is sued by the twins who claimed he stole their idea." },
+                { title: "Moonlight", year: 2016, director: "Barry Jenkins", duration: "1h 51m", desc: "A young African-American man grapples with his identity and sexuality while experiencing the everyday struggles of childhood, adolescence, and burgeoning adulthood." },
+                { title: "La La Land", year: 2016, director: "Damien Chazelle", duration: "2h 8m", desc: "While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations for the future." },
+                { title: "Roma", year: 2018, director: "Alfonso Cuarón", duration: "2h 15m", desc: "A year in the life of a middle-class family's maid in Mexico City in the early 1970s." },
+                { title: "A Star Is Born", year: 2018, director: "Bradley Cooper", duration: "2h 16m", desc: "A musician helps a young singer find fame as age and alcoholism send his own career into a downward spiral." },
+                { title: "No Country for Old Men", year: 2007, director: "Ethan & Joel Coen", duration: "2h 2m", desc: "Violence and mayhem ensue after a hunter stumbles upon a drug deal gone wrong and more than two million dollars in cash near the Rio Grande." },
+                { title: "There Will Be Blood", year: 2007, director: "Paul Thomas Anderson", duration: "2h 38m", desc: "A story of family, religion, hatred, oil and madness, focusing on a turn-of-the-century prospector in the early days of the business." },
+                { title: "Manchester by the Sea", year: 2016, director: "Kenneth Lonergan", duration: "2h 17m", desc: "A depressed uncle is asked to take care of his teenage nephew after the boy's father dies." },
+                { title: "1917", year: 2019, director: "Sam Mendes", duration: "1h 59m", desc: "April 6th, 1917. As a regiment assembles to wage war deep in enemy territory, two soldiers are assigned to race against time and deliver a message." },
+                { title: "Joker", year: 2019, director: "Todd Phillips", duration: "2h 2m", desc: "In Gotham City, mentally troubled comedian Arthur Fleck is disregarded and mistreated by society. He then embarks on a downward spiral." },
+                { title: "Marriage Story", year: 2019, director: "Noah Baumbach", duration: "2h 17m", desc: "Noah Baumbach's incisive and compassionate look at a marriage breaking up and a family staying together." },
+                { title: "Slumdog Millionaire", year: 2008, director: "Danny Boyle", duration: "2h 0m", desc: "A Mumbai teenager reflects on his life after being accused of cheating on the Indian version of 'Who Wants to be a Millionaire?'." },
+                { title: "Spotlight", year: 2015, director: "Tom McCarthy", duration: "2h 9m", desc: "The true story of how the Boston Globe uncovered the massive scandal of child molestation and cover-up within the local Catholic Archdiocese." },
+                { title: "The Truman Show", year: 1998, director: "Peter Weir", duration: "1h 43m", desc: "An insurance salesman discovers his whole life is actually a reality TV show." },
+                { title: "American Beauty", year: 1999, director: "Sam Mendes", duration: "2h 2m", desc: "A sexually frustrated suburban father has a mid-life crisis after becoming infatuated with his daughter's best friend." }
+            ]
+        };
+
+        // DOM Elements
+        const stepGenre = document.getElementById('step-genre');
+        const stepLoading = document.getElementById('step-loading');
+        const stepResult = document.getElementById('step-result');
+        const genreGrid = document.getElementById('genre-grid');
+        const loadingText = document.getElementById('loading-text');
+
+        // Initialize
+        function init() {
+            renderGenres();
+            lucide.createIcons();
+        }
+
+        // Render Genre Buttons
+        function renderGenres() {
+            const genres = Object.keys(movieData);
+            // Stagger animation delays based on index
+            genreGrid.innerHTML = genres.map((genre, index) => `
+                <button
+                  onclick="selectGenre('${genre}')"
+                  style="animation-delay: ${index * 100}ms"
+                  class="animate-pop-in group relative overflow-hidden p-6 rounded-2xl bg-slate-800/50 hover:bg-red-600 transition-all duration-300 ease-out border border-white/10 hover:border-red-400 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] text-left w-full hover:-translate-y-1"
+                >
+                  <span class="relative z-10 font-bold text-lg text-white tracking-wide group-hover:scale-105 inline-block transition-transform duration-300">${genre}</span>
+                  
+                  <!-- Gradient Sweep on Hover -->
+                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-150%] skew-x-12 group-hover:translate-x-[150%] transition-transform duration-700 ease-in-out"></div>
+                  
+                  <!-- Subtle corner glow -->
+                  <div class="absolute -bottom-4 -right-4 w-16 h-16 bg-red-500 blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-300"></div>
+                </button>
+            `).join('');
+        }
+
+        // Helper: Generate a pseudo-random consistent rating for a movie
+        function getRating(title) {
+            let hash = 0;
+            for (let i = 0; i < title.length; i++) {
+                hash = title.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // Generate a number between 82 and 99
+            const rating = Math.abs(hash % 18) + 82; 
+            return `${rating}%`;
+        }
+
+        // Handle Selection
+        function selectGenre(genre) {
+            // Hide genre, show loading
+            stepGenre.classList.remove('active');
+            stepLoading.classList.add('active');
+            loadingText.innerText = `Finding the perfect ${genre} flick`;
+
+            // Wait 1.5s then show result
+            setTimeout(() => {
+                const movies = movieData[genre];
+                const randomMovie = movies[Math.floor(Math.random() * movies.length)];
+                
+                showResult(randomMovie);
+            }, 1800); // Slightly longer for dramatic effect
+        }
+
+        // Show Result
+        function showResult(movie) {
+            stepLoading.classList.remove('active');
+            stepResult.classList.add('active');
+
+            // Populate Data
+            document.getElementById('movie-title').innerText = movie.title;
+            document.getElementById('movie-year').innerText = movie.year;
+            document.getElementById('movie-duration').innerText = movie.duration;
+            document.getElementById('movie-director').innerText = movie.director;
+            document.getElementById('movie-desc').innerText = `"${movie.desc}"`;
+            
+            // Set Rating
+            const rating = movie.rating || getRating(movie.title);
+            document.getElementById('movie-rating').innerText = rating;
+            
+            // Set Watch Button Action
+            const btnWatch = document.getElementById('btn-watch');
+            btnWatch.onclick = () => {
+                const query = encodeURIComponent(`watch ${movie.title} online`);
+                // Using Google Search is the safest bet for generic "where to watch" queries
+                window.open(`https://www.google.com/search?q=${query}`, '_blank');
+            };
+
+            // Re-run icons for the new content if needed, though mostly static here
+            lucide.createIcons(); 
+        }
+
+        // Reset
+        window.resetApp = function() {
+            stepResult.classList.remove('active');
+            stepGenre.classList.add('active');
+            // Re-trigger animations by clearing and re-rendering (optional, but keeps it fresh)
+            renderGenres();
+            lucide.createIcons();
+        };
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
